@@ -553,6 +553,15 @@ class ReceiptPrinterService {
     // Column widths — must sum to 12 (ESC/POS constraint).
     final widths = _columnWidths(columns);
 
+    // ESC/POS has no "draw a box" command — `Generator.row` only ever
+    // prints plain text columns, no per-cell borders are possible on real
+    // thermal hardware. `gen.hr()` (a real hardware rule, not just a text
+    // line) is the closest honest equivalent: a top/bottom rule framing
+    // the whole block, matching how an actual till receipt conventionally
+    // marks off an items block, rather than the portal's browser-rendered
+    // full grid (which a printer's own command set has no way to draw).
+    if (section.bordered) bytes += gen.hr();
+
     // Header row.
     bytes += gen.row([
       for (var i = 0; i < columns.length; i++)
@@ -562,6 +571,7 @@ class ReceiptPrinterService {
           styles: columns[i] == 'name' ? headerStyle : rightBoldStyle,
         ),
     ]);
+    if (section.bordered) bytes += gen.hr();
 
     // Item rows — name on its own line, then the numeric columns.
     for (final item in items) {
@@ -583,6 +593,7 @@ class ReceiptPrinterService {
     }
 
     // Totals footer rows.
+    if (section.totals.isNotEmpty && section.bordered) bytes += gen.hr();
     for (final total in section.totals) {
       final resolvedValue = ReceiptTokenResolver.resolve(total.value, tokens);
       bytes += gen.row([
@@ -598,6 +609,7 @@ class ReceiptPrinterService {
         ),
       ]);
     }
+    if (section.bordered) bytes += gen.hr();
 
     return bytes;
   }

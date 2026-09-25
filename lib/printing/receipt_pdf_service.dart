@@ -50,6 +50,17 @@ class ReceiptPdfService {
     pdf.addPage(
       pw.Page(
         pageFormat: pageFormat,
+        // Monospace, matching the Super Admin portal's own preview
+        // (Tailwind `font-mono`) — the pdf package's default is Helvetica
+        // (proportional), which visibly doesn't look like a receipt.
+        // Courier is one of the 14 base PDF fonts, built in — no font
+        // file to bundle.
+        theme: pw.ThemeData.withFont(
+          base: pw.Font.courier(),
+          bold: pw.Font.courierBold(),
+          italic: pw.Font.courierOblique(),
+          boldItalic: pw.Font.courierBoldOblique(),
+        ),
         build: (context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
@@ -233,7 +244,86 @@ class ReceiptPdfService {
     // Column flex widths — name gets more space.
     int flexFor(String col) => col == 'name' ? 4 : 2;
 
-    // Header row.
+    String cellValue(String col, SaleItem item) => switch (col) {
+          'name' => item.productName,
+          'qty' => qty(item.quantity),
+          'price' => receiptPlainAmount(item.price),
+          'total' => receiptPlainAmount(item.amount),
+          _ => '',
+        };
+
+    if (section.bordered) {
+      return pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Table(
+            border: pw.TableBorder.all(width: 0.5),
+            columnWidths: {
+              for (var i = 0; i < columns.length; i++)
+                i: pw.FlexColumnWidth(flexFor(columns[i]).toDouble()),
+            },
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: PdfColors.grey300),
+                children: [
+                  for (final col in columns)
+                    _tableCell(
+                      section.headers[col] ?? col,
+                      headerStyle,
+                      col != 'name',
+                    ),
+                ],
+              ),
+              for (final item in items)
+                pw.TableRow(
+                  children: [
+                    for (final col in columns)
+                      _tableCell(cellValue(col, item), cellStyle, col != 'name'),
+                  ],
+                ),
+            ],
+          ),
+          if (section.totals.isNotEmpty)
+            pw.Table(
+              border: const pw.TableBorder(
+                left: pw.BorderSide(width: 0.5),
+                right: pw.BorderSide(width: 0.5),
+                bottom: pw.BorderSide(width: 0.5),
+                horizontalInside: pw.BorderSide(width: 0.5),
+              ),
+              // Closer to even than 2:1 — Courier needs real room for a
+              // value like "Rs. 900.00" not to wrap.
+              columnWidths: const {0: pw.FlexColumnWidth(3), 1: pw.FlexColumnWidth(2)},
+              children: [
+                for (final total in section.totals)
+                  pw.TableRow(
+                    children: [
+                      _tableCell(
+                        total.label,
+                        pw.TextStyle(
+                          fontSize: _pdfFontSize('normal'),
+                          fontWeight: total.bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                        ),
+                        false,
+                      ),
+                      _tableCell(
+                        ReceiptTokenResolver.resolve(total.value, tokens),
+                        pw.TextStyle(
+                          fontSize: _pdfFontSize('normal'),
+                          fontWeight: total.bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+                        ),
+                        true,
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+        ],
+      );
+    }
+
+    // bordered: false — the original plain-list look, just horizontal
+    // dividers marking the header and totals boundaries, no grid.
     final headerCells = columns.map((col) {
       final label = section.headers[col] ?? col;
       final isNumeric = col != 'name';
@@ -247,24 +337,16 @@ class ReceiptPdfService {
       );
     }).toList();
 
-    // Item rows.
     final itemRows = items.map((item) {
       return pw.Padding(
         padding: const pw.EdgeInsets.symmetric(vertical: 1),
         child: pw.Row(
           children: columns.map((col) {
             final isNumeric = col != 'name';
-            final value = switch (col) {
-              'name' => item.productName,
-              'qty' => qty(item.quantity),
-              'price' => receiptPlainAmount(item.price),
-              'total' => receiptPlainAmount(item.amount),
-              _ => '',
-            };
             return pw.Expanded(
               flex: flexFor(col),
               child: pw.Text(
-                value,
+                cellValue(col, item),
                 style: cellStyle,
                 textAlign: isNumeric ? pw.TextAlign.right : pw.TextAlign.left,
               ),
@@ -274,8 +356,6 @@ class ReceiptPdfService {
       );
     }).toList();
 
-    // Totals footer rows — Subtotal/Discount/Tax/Total merged into the same
-    // table, matching the ESC/POS renderer.
     final totalRows = section.totals.map((total) {
       final resolvedValue = ReceiptTokenResolver.resolve(total.value, tokens);
       final style = pw.TextStyle(
@@ -297,17 +377,25 @@ class ReceiptPdfService {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
-        // Header
         pw.Row(children: headerCells),
         pw.Divider(thickness: 0.3),
-        // Items
         ...itemRows,
-        // Totals footer
         if (totalRows.isNotEmpty) ...[
           pw.Divider(thickness: 0.3),
           ...totalRows,
         ],
       ],
+    );
+  }
+
+  static pw.Widget _tableCell(String text, pw.TextStyle style, bool alignRight) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+      child: pw.Text(
+        text,
+        style: style,
+        textAlign: alignRight ? pw.TextAlign.right : pw.TextAlign.left,
+      ),
     );
   }
 
@@ -376,10 +464,18 @@ class ReceiptPdfService {
   /// Maps the schema's size buckets to PDF point sizes. Sized for a 58mm
   /// thermal receipt — wider formats (80mm, A4) still look fine, since the
   /// relative hierarchy is what matters.
+  ///
+  /// Deliberately smaller than the equivalent Helvetica sizes would be —
+  /// Courier (used everywhere in this document, see [buildPdf]'s `theme`)
+  /// is a monospace font, meaningfully wider per character than a
+  /// proportional font at the same nominal point size, since every glyph
+  /// (including narrow ones like "i") takes the width of the widest one.
+  /// Sized down to keep a narrow numeric column (Price/Total on a 58mm
+  /// receipt) from wrapping.
   static double _pdfFontSize(String size) => switch (size) {
-        'xs' => 6,
-        'small' => 7,
-        'large' => 12,
-        _ => 8, // 'normal'
+        'xs' => 5,
+        'small' => 6,
+        'large' => 10,
+        _ => 7, // 'normal'
       };
 }

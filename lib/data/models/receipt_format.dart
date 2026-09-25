@@ -123,6 +123,7 @@ class ItemsSection extends ReceiptSection {
     required this.columns,
     required this.headers,
     this.totals = const [],
+    this.bordered = true,
   });
 
   /// Which columns show and in what order — any subset of
@@ -135,6 +136,10 @@ class ItemsSection extends ReceiptSection {
   /// Subtotal/Tax/Total rows merged into this table as a footer.
   /// Each entry: `{ label, value, bold? }`.
   final List<ItemTotalRow> totals;
+
+  /// `true` (default): a real bordered grid, matching the Super Admin
+  /// portal's own default. `false`: a plain list, no grid lines.
+  final bool bordered;
 
   factory ItemsSection.fromJson(Map<String, dynamic> json) {
     final rawColumns = json['columns'];
@@ -151,6 +156,7 @@ class ItemsSection extends ReceiptSection {
           .whereType<Map<String, dynamic>>()
           .map(ItemTotalRow.fromJson)
           .toList(),
+      bordered: asBool(json['bordered'], true),
     );
   }
 }

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Debug-build-only override of ../../main/res/xml/network_security_config.xml.
+
+  Dio (the app's main API client) uses Dart's own networking and never
+  consults this file, so it already reaches any dev-machine LAN address the
+  runtime-editable server URL is pointed at over plain HTTP. OkHttp (native
+  Retrofit calls — e.g. FCM device-token registration) does enforce it, and
+  main's config only whitelists the emulator-host aliases, so on a physical
+  device pointed at a real LAN IP those native calls failed cleartext checks
+  while the rest of the app worked fine. This override just brings debug
+  builds' native traffic in line with what Dio already does. Release keeps
+  main's strict, HTTPS-only config — this resource only replaces it here.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true" />
+</network-security-config>

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Kept inside the adaptive-icon safe zone (66 of 108dp). -->
+<!-- GiShoppingBag (react-icons "gi" set) = game-icons.net's "shopping-bag" by
+     Delapouite, CC BY 3.0 — fetched verbatim from
+     https://game-icons.net/icons/000000/transparent/1x1/delapouite/shopping-bag.svg
+     (original viewBox 0 0 512 512). Converted to absolute path commands, then
+     mapped by final = original * 0.105 + (27.12, 27.225) to center the glyph
+     at (54,54) in this 108x108 canvas while keeping its widest points (the
+     bag's bottom corners) inside the safe-zone radius. The two decorative
+     rivet circles from the original art are dropped — at real icon sizes
+     they'd be under a device pixel and just read as noise.
+     Attribution: Delapouite (game-icons.net), CC BY 3.0. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Handle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,29.64
+                           C50.33,29.64 47.49,31.52 45.67,34.02
+                           C44.42,35.74 43.62,37.75 43.24,39.72
+                           L45.18,39.72
+                           C45.54,38.12 46.22,36.49 47.21,35.13
+                           C48.75,33.01 50.96,31.53 54,31.53
+                           C57.05,31.53 59.25,33.01 60.79,35.13
+                           C61.78,36.49 62.46,38.12 62.82,39.72
+                           L64.76,39.72
+                           C64.38,37.75 63.58,35.74 62.33,34.02
+                           C60.51,31.52 57.68,29.64 54,29.64 Z" />
+    <!-- Body -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36.39,41.61 L33.19,78.36 L74.81,78.36 L71.62,41.61 L36.39,41.61 Z" />
+</vector>

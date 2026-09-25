@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shown while the Flutter engine warms up. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">@drawable/launch_background</item>
+        <!-- Android 12+'s Splash Screen API draws its own splash before this
+             theme's windowBackground ever applies, and derives its icon
+             implicitly (from the launcher icon) when these aren't set —
+             unrecognized on pre-31 devices, safely ignored there. Setting
+             them explicitly means it always reads our current assets fresh
+             instead of whatever it derived/cached on original install. -->
+        <item name="android:windowSplashScreenBackground">@color/ic_launcher_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_store_splash</item>
+    </style>
+    <!-- Applied once Flutter takes over the window. -->
+    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+        <item name="android:windowBackground">?android:colorBackground</item>
+    </style>
+</resources>

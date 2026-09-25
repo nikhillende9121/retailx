@@ -1,0 +1,9 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!--
+      Debug-only. Android blocks plain HTTP by default from targetSdk 28, which
+      kills a dev backend on http://192.168.x.x:3000. This override applies to
+      debug builds only — release builds keep HTTPS-only enforcement.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <application android:usesCleartextTraffic="true" />
+</manifest>

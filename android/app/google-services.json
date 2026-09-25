@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "701574828926",
+    "firebase_url": "https://retaix-bd6c8-default-rtdb.firebaseio.com",
+    "project_id": "retaix-bd6c8",
+    "storage_bucket": "retaix-bd6c8.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:701574828926:android:054eca07f7ab946495592f",
+        "android_client_info": {
+          "package_name": "com.retailx.store_manager"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzO1KpFR8lyIRiNv5cWZ0DGvuLJ736qYQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,64 @@
+name: store_manager
+description: Store Manager - a warehouse-scoped POS/inventory companion app for store staff.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State management
+  flutter_riverpod: ^2.4.0
+
+  # Networking
+  # 5.2 is the floor: DioException/DioExceptionType were named DioError before it.
+  dio: ^5.2.0
+
+  # Token storage (Keystore-backed on Android, Keychain on iOS)
+  flutter_secure_storage: ^9.0.0
+
+  # Money / date formatting
+  intl: ^0.19.0
+
+  # Inter, per the Precision POS design spec. Fetched on first launch and
+  # cached; if you'd rather ship it offline, bundle the .ttf files and swap
+  # GoogleFonts.interTextTheme() in lib/ui/theme.dart for a fontFamily.
+  google_fonts: ^6.1.0
+
+  # Camera-based barcode scanning for the till's "Scan a barcode" button.
+  # Pinned below 6.0: newer releases bundle androidx.camera 1.6.x, which
+  # needs Android Gradle plugin 8.9.1+ — this project is still on 8.7.3.
+  mobile_scanner: '>=5.2.3 <6.0.0'
+
+  # Bluetooth ESC/POS thermal receipt printing (58/80mm counter printers).
+  # print_bluetooth_thermal is transport-only (Classic BT via bonded-device
+  # list/connect/write, no extra platform baggage); esc_pos_utils_plus builds
+  # the actual ESC/POS command bytes.
+  # NOTE: unified_esc_pos_printer was tried first but its network-printer
+  # transport pulls in network_info_plus, which needs a newer Kotlin than
+  # this project's Kotlin 2.0.21 / AGP 8.7.3 pin (same AGP ceiling
+  # mobile_scanner is pinned below 6.0 to respect) — it broke the Android
+  # build with an "incompatible Kotlin metadata" compiler crash.
+  print_bluetooth_thermal: ^1.2.1
+  esc_pos_utils_plus: ^2.0.4
+
+  # PDF generation and native print dialog (desktop + Android PDF export).
+  # `printing` opens the OS print dialog on Windows/macOS/Linux and the
+  # system print service on Android; `pdf` builds the document tree it sends.
+  pdf: ^3.10.0
+  printing: ^5.12.0
+  # print_bluetooth_thermal checks BLUETOOTH_CONNECT on Android 12+ but never
+  # actually requests it (dead ActivityCompat.requestPermissions code, commented
+  # out in its own source) — every call silently no-ops without this.
+  permission_handler: ^11.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

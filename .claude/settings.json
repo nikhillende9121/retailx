@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew.bat assembleDebug --stacktrace)",
+      "Read(//c/Users/CSI/AppData/Local/Temp/claude/**)",
+      "Bash(ls \"/c/Program Files/Eclipse Adoptium\" 2>/dev/null)",
+      "Read(//c/Program Files/Eclipse Adoptium/**)",
+      "PowerShell(Get-PSDrive -PSProvider FileSystem | Select-Object Name, @{N='UsedGB';E={[math]::Round\\($_.Used/1GB,2\\)}}, @{N='FreeGB';E={[math]::Round\\($_.Free/1GB,2\\)}})",
+      "Bash(flutter analyze *)",
+      "Bash(find / -path \"*/flutter/packages/flutter/lib/src/material/icons.dart\" 2>/dev/null | head -1)",
+      "Read(//c//**)"
+    ]
+  }
+}

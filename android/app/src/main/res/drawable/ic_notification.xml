@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Simplified bag glyph purpose-built for a 24x24 status-bar icon — NOT a
+     scaled-down copy of ic_launcher_foreground.xml's proportions (that was
+     the first version, and its ~0.7-unit handle-to-body gap disappeared at
+     24dp, reading as one merged box). This version keeps every point at
+     least ~3 units from every edge — status-bar icon rendering can crop
+     content near the canvas edge more aggressively than an adaptive
+     launcher icon's safe zone does — and widens the handle-to-body gap to
+     ~2.2 units so the two stay visually distinct at actual render size. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Handle: apex at y=4, shoulders at y=7.3 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,4
+                           C10.5,4 9.3,5.1 9.3,7.3
+                           L10.1,7.3
+                           C10.1,5.6 10.9,5.1 12,5.1
+                           C13.1,5.1 13.9,5.6 13.9,7.3
+                           L14.7,7.3
+                           C14.7,5.1 13.5,4 12,4 Z" />
+    <!-- Body: top at y=9.5 — a clear 2.2-unit gap below the handle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M6,9.5 L4,20 L20,20 L18,9.5 L6,9.5 Z" />
+</vector>

@@ -1,0 +1,614 @@
+{
+  "info": {
+    "name": "Receipt Format API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Test the backend receipt-format endpoints. Fill the collection variables first, then run top to bottom. Tokens and formatId are saved automatically. NOTE: {{store_name}} etc. inside bodies are receipt tokens, not Postman variables - Postman will leave them as-is if no variable has that name."
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://103.205.142.172:3000/api/v1"
+    },
+    {
+      "key": "superAdminEmail",
+      "value": ""
+    },
+    {
+      "key": "superAdminPassword",
+      "value": ""
+    },
+    {
+      "key": "userEmail",
+      "value": ""
+    },
+    {
+      "key": "userPassword",
+      "value": ""
+    },
+    {
+      "key": "tenantCode",
+      "value": ""
+    },
+    {
+      "key": "tenantId",
+      "value": ""
+    },
+    {
+      "key": "warehouseId",
+      "value": ""
+    },
+    {
+      "key": "terminalId",
+      "value": ""
+    },
+    {
+      "key": "saToken",
+      "value": ""
+    },
+    {
+      "key": "userToken",
+      "value": ""
+    },
+    {
+      "key": "formatId",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Super Admin login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{superAdminEmail}}\",\n  \"password\": \"{{superAdminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('success', () => pm.expect(j.success).to.eql(true));",
+                  "if (j.success) pm.collectionVariables.set('saToken', j.data.accessToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "POS user login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "User needs SALE.VIEW permission.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\",\n  \"tenantCode\": \"{{tenantCode}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('success', () => pm.expect(j.success).to.eql(true));",
+                  "if (j.success) pm.collectionVariables.set('userToken', j.data.accessToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Super Admin - formats",
+      "item": [
+        {
+          "name": "List formats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create test format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"API Test Receipt\",\n  \"paperWidth\": 58,\n  \"isDefault\": false,\n  \"schema\": {\n    \"sections\": [\n      {\n        \"type\": \"text\",\n        \"value\": \"{{store_name}}\",\n        \"align\": \"center\",\n        \"bold\": true,\n        \"size\": \"large\"\n      },\n      {\n        \"type\": \"text\",\n        \"value\": \"{{address}}\",\n        \"align\": \"center\",\n        \"size\": \"small\"\n      },\n      {\n        \"type\": \"text\",\n        \"value\": \"*** SERVER FORMAT v1 ***\",\n        \"align\": \"center\",\n        \"bold\": true\n      },\n      {\n        \"type\": \"divider\"\n      },\n      {\n        \"type\": \"keyvalue\",\n        \"key\": \"Invoice\",\n        \"value\": \"{{invoice_no}}\"\n      },\n      {\n        \"type\": \"keyvalue\",\n        \"key\": \"Date\",\n        \"value\": \"{{date}} {{time}}\"\n      },\n      {\n        \"type\": \"keyvalue\",\n        \"key\": \"Cashier\",\n        \"value\": \"{{cashier}}\"\n      },\n      {\n        \"type\": \"divider\"\n      },\n      {\n        \"type\": \"items\",\n        \"columns\": [\n          \"name\",\n          \"qty\",\n          \"price\",\n          \"total\"\n        ],\n        \"headers\": {\n          \"name\": \"Item\",\n          \"qty\": \"Qty\",\n          \"price\": \"Rate\",\n          \"total\": \"Amt\"\n        },\n        \"totals\": [\n          {\n            \"label\": \"Subtotal\",\n            \"value\": \"{{subtotal}}\"\n          },\n          {\n            \"label\": \"Discount\",\n            \"value\": \"{{discount}}\"\n          },\n          {\n            \"label\": \"Tax\",\n            \"value\": \"{{tax}}\"\n          },\n          {\n            \"label\": \"TOTAL\",\n            \"value\": \"{{total}}\",\n            \"bold\": true\n          }\n        ]\n      },\n      {\n        \"type\": \"spacer\",\n        \"lines\": 1\n      },\n      {\n        \"type\": \"qr\",\n        \"value\": \"{{invoice_no}}\"\n      },\n      {\n        \"type\": \"barcode\",\n        \"value\": \"{{invoice_no}}\"\n      },\n      {\n        \"type\": \"terms\",\n        \"value\": \"All sales are final.\\nNo exchange without bill.\"\n      },\n      {\n        \"type\": \"row\",\n        \"sections\": [\n          {\n            \"type\": \"text\",\n            \"value\": \"ROW - should NOT print\"\n          }\n        ]\n      },\n      {\n        \"type\": \"image\",\n        \"value\": \"https://example.com/logo.png\",\n        \"align\": \"center\"\n      },\n      {\n        \"type\": \"text\",\n        \"value\": \"Thank you!\",\n        \"align\": \"center\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('success', () => pm.expect(j.success).to.eql(true));",
+                  "if (j.success) pm.collectionVariables.set('formatId', j.data.id);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get format",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats/{{formatId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats",
+                "{{formatId}}"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update format (bumps version)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats/{{formatId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats",
+                "{{formatId}}"
+              ]
+            },
+            "description": "Full replace. Version goes +1; the receipt header line changes to v2.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"API Test Receipt\",\n  \"paperWidth\": 58,\n  \"isDefault\": false,\n  \"schema\": {\n    \"sections\": [\n      {\n        \"type\": \"text\",\n        \"value\": \"{{store_name}}\",\n        \"align\": \"center\",\n        \"bold\": true,\n        \"size\": \"large\"\n      },\n      {\n        \"type\": \"text\",\n        \"value\": \"{{address}}\",\n        \"align\": \"center\",\n        \"size\": \"small\"\n      },\n      {\n        \"type\": \"text\",\n        \"value\": \"*** SERVER FORMAT v2 ***\",\n        \"align\": \"center\",\n        \"bold\": true\n      },\n      {\n        \"type\": \"divider\"\n      },\n      {\n        \"type\": \"keyvalue\",\n        \"key\": \"Invoice\",\n        \"value\": \"{{invoice_no}}\"\n      },\n      {\n        \"type\": \"keyvalue\",\n        \"key\": \"Date\",\n        \"value\": \"{{date}} {{time}}\"\n      },\n      {\n        \"type\": \"keyvalue\",\n        \"key\": \"Cashier\",\n        \"value\": \"{{cashier}}\"\n      },\n      {\n        \"type\": \"divider\"\n      },\n      {\n        \"type\": \"items\",\n        \"columns\": [\n          \"name\",\n          \"qty\",\n          \"price\",\n          \"total\"\n        ],\n        \"headers\": {\n          \"name\": \"Item\",\n          \"qty\": \"Qty\",\n          \"price\": \"Rate\",\n          \"total\": \"Amt\"\n        },\n        \"totals\": [\n          {\n            \"label\": \"Subtotal\",\n            \"value\": \"{{subtotal}}\"\n          },\n          {\n            \"label\": \"Discount\",\n            \"value\": \"{{discount}}\"\n          },\n          {\n            \"label\": \"Tax\",\n            \"value\": \"{{tax}}\"\n          },\n          {\n            \"label\": \"TOTAL\",\n            \"value\": \"{{total}}\",\n            \"bold\": true\n          }\n        ]\n      },\n      {\n        \"type\": \"spacer\",\n        \"lines\": 1\n      },\n      {\n        \"type\": \"qr\",\n        \"value\": \"{{invoice_no}}\"\n      },\n      {\n        \"type\": \"barcode\",\n        \"value\": \"{{invoice_no}}\"\n      },\n      {\n        \"type\": \"terms\",\n        \"value\": \"All sales are final.\\nNo exchange without bill.\"\n      },\n      {\n        \"type\": \"row\",\n        \"sections\": [\n          {\n            \"type\": \"text\",\n            \"value\": \"ROW - should NOT print\"\n          }\n        ]\n      },\n      {\n        \"type\": \"image\",\n        \"value\": \"https://example.com/logo.png\",\n        \"align\": \"center\"\n      },\n      {\n        \"type\": \"text\",\n        \"value\": \"Thank you!\",\n        \"align\": \"center\"\n      }\n    ]\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Clone format",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats/{{formatId}}/clone",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats",
+                "{{formatId}}",
+                "clone"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"API Test Receipt (copy)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete format",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats/{{formatId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats",
+                "{{formatId}}"
+              ]
+            },
+            "description": "Soft delete; also removes its assignments.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Super Admin - assign (use ONE)",
+      "item": [
+        {
+          "name": "Assign to tenant",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats/{{formatId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats",
+                "{{formatId}}",
+                "assign"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenantId\": \"{{tenantId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Assign to store (warehouse)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats/{{formatId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats",
+                "{{formatId}}",
+                "assign"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouseId\": \"{{warehouseId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Assign to terminal",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/receipt-formats/{{formatId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "receipt-formats",
+                "{{formatId}}",
+                "assign"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{saToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"terminalId\": \"{{terminalId}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. POS - what the app calls",
+      "item": [
+        {
+          "name": "Get receipt format",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pos/{{terminalId}}/receipt-format",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pos",
+                "{{terminalId}}",
+                "receipt-format"
+              ]
+            },
+            "description": "terminalId must be a numeric Terminal.id in the user's tenant, even for tenant/store-level assignments.",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get receipt format version",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/pos/{{terminalId}}/receipt-format/version",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "pos",
+                "{{terminalId}}",
+                "receipt-format",
+                "version"
+              ]
+            },
+            "description": "",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{userToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

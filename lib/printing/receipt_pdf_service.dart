@@ -3,9 +3,10 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 
-import '../core/formatters.dart' show money, qty;
+import '../core/formatters.dart' show qty, receiptPlainAmount;
 import '../data/models/receipt_format.dart';
 import '../data/models/sale.dart';
+import 'receipt_image_loader.dart';
 import 'receipt_token_resolver.dart';
 
 /// Renders a receipt schema into a PDF and sends it to the OS print dialog.
@@ -24,11 +25,11 @@ class ReceiptPdfService {
   }
 
   /// Builds a PDF document from the receipt [format], with tokens resolved.
-  static pw.Document buildPdf({
+  static Future<pw.Document> buildPdf({
     required ReceiptFormat format,
     required Map<String, String> tokens,
     required List<SaleItem> items,
-  }) {
+  }) async {
     final pdf = pw.Document();
     final pageWidth = format.paperWidth.toDouble();
 
@@ -40,13 +41,19 @@ class ReceiptPdfService {
       marginAll: 4 * PdfPageFormat.mm,
     );
 
+    // Built once, up front — pw.Page's own `build` callback must stay
+    // synchronous (the pdf package calls it directly), so anything async
+    // (fetching a logo for an `image` section) has to resolve before we
+    // ever call addPage.
+    final sectionWidgets = await _buildSections(format.sections, tokens, items);
+
     pdf.addPage(
       pw.Page(
         pageFormat: pageFormat,
         build: (context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-            children: _buildSections(format.sections, tokens, items),
+            children: sectionWidgets,
           );
         },
       ),
@@ -62,7 +69,7 @@ class ReceiptPdfService {
     required List<SaleItem> items,
     String jobName = 'Receipt',
   }) async {
-    final pdf = buildPdf(format: format, tokens: tokens, items: items);
+    final pdf = await buildPdf(format: format, tokens: tokens, items: items);
     await Printing.layoutPdf(
       onLayout: (_) => pdf.save(),
       name: jobName,
@@ -71,24 +78,24 @@ class ReceiptPdfService {
 
   // ─── section rendering ─────────────────────────────────────────────────────
 
-  static List<pw.Widget> _buildSections(
+  static Future<List<pw.Widget>> _buildSections(
     List<ReceiptSection> sections,
     Map<String, String> tokens,
     List<SaleItem> items,
-  ) {
+  ) async {
     final widgets = <pw.Widget>[];
     for (final section in sections) {
-      final widget = _buildSection(section, tokens, items);
+      final widget = await _buildSection(section, tokens, items);
       if (widget != null) widgets.add(widget);
     }
     return widgets;
   }
 
-  static pw.Widget? _buildSection(
+  static Future<pw.Widget?> _buildSection(
     ReceiptSection section,
     Map<String, String> tokens,
     List<SaleItem> items,
-  ) {
+  ) async {
     return switch (section) {
       TextSection() => _buildText(section, tokens),
       KeyValueSection() => _buildKeyValue(section, tokens),
@@ -98,9 +105,71 @@ class ReceiptPdfService {
       BarcodeSection() => _buildBarcode(section, tokens),
       QrSection() => _buildQr(section, tokens),
       TermsSection() => _buildTerms(section, tokens),
-      ImageSection() => null, // Image loading is async; skip in PDF for now.
+      ImageSection() => await _buildImage(section, tokens),
+      RowSection() => await _buildRow(section, tokens, items),
       UnknownSection() => null, // Silently skipped per the guide.
     };
+  }
+
+  /// Fetches the logo and hands its raw bytes to [pw.MemoryImage], which
+  /// decodes the format itself. Returns `null` (section just doesn't
+  /// appear) on any failure — never throws, same reasoning as the ESC/POS
+  /// renderer's `_renderImage`.
+  static Future<pw.Widget?> _buildImage(
+    ImageSection section,
+    Map<String, String> tokens,
+  ) async {
+    final url = ReceiptTokenResolver.resolve(section.value, tokens);
+    if (url.isEmpty) return null;
+
+    final bytes = await ReceiptImageLoader.fetchBytes(url);
+    if (bytes == null) return null;
+
+    try {
+      final provider = pw.MemoryImage(bytes);
+      return pw.Padding(
+        padding: const pw.EdgeInsets.symmetric(vertical: 2),
+        child: pw.Align(
+          alignment: switch (section.align) {
+            'left' => pw.Alignment.centerLeft,
+            'right' => pw.Alignment.centerRight,
+            _ => pw.Alignment.center,
+          },
+          child: pw.Image(provider, height: 40, fit: pw.BoxFit.scaleDown),
+        ),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Lays each child out in a [pw.Row] — the PDF/desktop path has no real
+  /// technical limit on this the way ESC/POS text columns do, so it renders
+  /// exactly like the Super Admin preview: each child gets a share of the
+  /// width proportional to its own `width` (default `1`, i.e. even split).
+  static Future<pw.Widget?> _buildRow(
+    RowSection section,
+    Map<String, String> tokens,
+    List<SaleItem> items,
+  ) async {
+    if (section.children.isEmpty) return null;
+    final columns = <pw.Widget>[];
+    for (final child in section.children) {
+      final widget = await _buildSection(child.section, tokens, items);
+      columns.add(
+        pw.Expanded(
+          flex: child.width.round().clamp(1, 1000),
+          child: widget ?? pw.SizedBox.shrink(),
+        ),
+      );
+    }
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 1),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: columns,
+      ),
+    );
   }
 
   static pw.Widget _buildText(TextSection section, Map<String, String> tokens) {
@@ -188,8 +257,8 @@ class ReceiptPdfService {
             final value = switch (col) {
               'name' => item.productName,
               'qty' => qty(item.quantity),
-              'price' => money(item.price),
-              'total' => money(item.amount),
+              'price' => receiptPlainAmount(item.price),
+              'total' => receiptPlainAmount(item.amount),
               _ => '',
             };
             return pw.Expanded(
@@ -205,8 +274,8 @@ class ReceiptPdfService {
       );
     }).toList();
 
-    // Totals footer rows (portal-preview-only, but we render them anyway
-    // since this renderer supports it).
+    // Totals footer rows — Subtotal/Discount/Tax/Total merged into the same
+    // table, matching the ESC/POS renderer.
     final totalRows = section.totals.map((total) {
       final resolvedValue = ReceiptTokenResolver.resolve(total.value, tokens);
       final style = pw.TextStyle(

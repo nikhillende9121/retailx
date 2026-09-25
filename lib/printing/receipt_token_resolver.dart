@@ -34,10 +34,13 @@ class ReceiptTokenResolver {
       'date': date != null ? prettyDate(date.toIso8601String()) : '—',
       'time': date != null ? clock(date.toLocal()) : '',
       'cashier': (cashierName ?? '').isNotEmpty ? cashierName! : '—',
-      'subtotal': money(sale.itemsSubtotal),
-      'tax': money(totalTax),
-      'discount': money(sale.discountTotal),
-      'total': money(sale.computedTotal),
+      // receiptAmount, not money() — this map feeds the ESC/POS path too,
+      // and money()'s ₹ glyph prints as a blank/garbage box on a real
+      // thermal printer. See receiptAmount's doc comment.
+      'subtotal': receiptAmount(sale.itemsSubtotal),
+      'tax': receiptAmount(totalTax),
+      'discount': receiptAmount(sale.discountTotal),
+      'total': receiptAmount(sale.computedTotal),
     };
   }
 

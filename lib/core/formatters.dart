@@ -11,8 +11,37 @@ final DateFormat _prettyDate = DateFormat('d MMM yyyy');
 final DateFormat _prettyDateTime = DateFormat('d MMM yyyy, h:mm a');
 final DateFormat _clock = DateFormat('h:mm a');
 
-/// `1234.5` -> `₹1,234.50`
+/// `1234.5` -> `₹1,234.50`. On-screen UI only — never use this for text that
+/// reaches a thermal printer (see [receiptAmount]).
 String money(num? value) => _money.format(value ?? 0);
+
+/// `1234.5` -> `Rs. 1234.50`, `-1234.5` -> `-Rs. 1234.50`.
+///
+/// The ₹ glyph has no representation in the Latin-1-ish codec ESC/POS
+/// generators talk to a thermal printer with, and cheap printer modules
+/// don't carry a code page that includes it either — it prints as blank or
+/// garbage. "Rs." is what every till receipt in this market already uses
+/// for the same reason. Use this (not [money]) for every amount that ends
+/// up as receipt text — that includes the `{{subtotal}}`/`{{tax}}`/
+/// `{{discount}}`/`{{total}}` tokens `ReceiptTokenResolver` builds, since
+/// those feed the ESC/POS path as well as the PDF one.
+String receiptAmount(num? value) {
+  final v = (value ?? 0).toDouble();
+  final prefix = v < 0 ? '-Rs. ' : 'Rs. ';
+  return '$prefix${v.abs().toStringAsFixed(2)}';
+}
+
+/// `1234.5` -> `1234.50` — no symbol, no thousands separator.
+///
+/// For per-item figures on a receipt (a schema's `items` table cells): a
+/// currency prefix on every single row is clutter a till receipt doesn't
+/// carry — [receiptAmount]'s "Rs." is reserved for the one line that needs
+/// it (a bold grand total). Same reasoning as [receiptAmount] for why this
+/// can't be [money]: the PDF renderer's default font is one of the base-14
+/// PDF fonts (Helvetica), which predates ₹ same as a thermal printer's code
+/// page does — money() risks a missing-glyph box there too, not just on
+/// ESC/POS.
+String receiptPlainAmount(num? value) => (value ?? 0).toStringAsFixed(2);
 
 /// Quantities are conceptually integers at a till but the API models them as
 /// decimals; don't show `2.0` where `2` is meant.

@@ -1,4 +1,5 @@
 import 'package:esc_pos_utils_plus/esc_pos_utils_plus.dart';
+import 'package:image/image.dart' as img;
 import 'package:permission_handler/permission_handler.dart';
 import 'package:print_bluetooth_thermal/print_bluetooth_thermal.dart';
 
@@ -8,6 +9,7 @@ import '../data/models/catalog.dart';
 import '../data/models/receipt_format.dart';
 import '../data/models/sale.dart';
 import '../data/models/tenant.dart';
+import 'receipt_image_loader.dart';
 import 'receipt_token_resolver.dart';
 
 /// Talks to a paired Bluetooth thermal receipt printer.
@@ -88,21 +90,13 @@ class ReceiptPrinterService {
 
   Future<void> disconnect() => PrintBluetoothThermal.disconnect;
 
-  /// Rupee sign has no representation in the Latin-1 codec the generator
-  /// uses to talk to the printer natively — cheap ESC/POS modules don't
-  /// carry a code page with ₹ either, so it prints as blank or garbage.
-  /// "Rs." is what every till receipt in this market already uses for the
-  /// same reason. Reserved for the one grand-total line — every other
-  /// figure on the receipt is plain, matching the agreed format.
-  String _amount(double value) {
-    final prefix = value < 0 ? '-Rs. ' : 'Rs. ';
-    return '$prefix${value.abs().toStringAsFixed(2)}';
-  }
+  /// Reserved for the one grand-total line — every other figure on the
+  /// receipt is plain, matching the agreed format. See [receiptAmount]'s
+  /// doc comment for why this can't just be [money].
+  String _amount(double value) => receiptAmount(value);
 
-  /// Plain 2-decimal figure, no currency prefix — `toStringAsFixed` already
-  /// carries the sign for a negative value (a discount), so no separate
-  /// abs()/prefix dance is needed the way [_amount] needs one.
-  String _plain(double value) => value.toStringAsFixed(2);
+  /// Plain 2-decimal figure, no currency prefix.
+  String _plain(double value) => receiptPlainAmount(value);
 
   /// Builds and sends the full receipt for [sale] to the connected printer
   /// — call [connect] first.
@@ -330,7 +324,7 @@ class ReceiptPrinterService {
     List<int> bytes = [];
 
     for (final section in format.sections) {
-      bytes += _renderSection(generator, section, tokens, items);
+      bytes += await _renderSection(generator, section, tokens, items);
     }
 
     bytes += generator.feed(2);
@@ -346,12 +340,12 @@ class ReceiptPrinterService {
     }
   }
 
-  List<int> _renderSection(
+  Future<List<int>> _renderSection(
     Generator gen,
     ReceiptSection section,
     Map<String, String> tokens,
     List<SaleItem> items,
-  ) {
+  ) async {
     return switch (section) {
       TextSection() => _renderText(gen, section, tokens),
       KeyValueSection() => _renderKeyValue(gen, section, tokens),
@@ -361,9 +355,127 @@ class ReceiptPrinterService {
       BarcodeSection() => _renderBarcode(gen, section, tokens),
       QrSection() => _renderQr(gen, section, tokens),
       TermsSection() => _renderTerms(gen, section, tokens),
-      ImageSection() => const <int>[], // Skip — needs async fetch.
+      ImageSection() => await _renderImage(gen, section, tokens),
+      RowSection() => await _renderRow(gen, section, tokens, items),
       UnknownSection() => const <int>[], // Silently skipped.
     };
+  }
+
+  /// True side-by-side ESC/POS text columns (`Generator.row`) only work for
+  /// simple, single-line content — the API needs column widths that sum to
+  /// exactly 12 and one line of text per column — so this only lays
+  /// `text`/`keyvalue` children out that way. A row holding anything more
+  /// complex (a nested items table, image, qr/barcode graphic, or another
+  /// row) has no sane column representation on a receipt-width printer, so
+  /// those — and any row with more children than a 12-unit grid can give
+  /// one column each — fall back to rendering every child stacked, in
+  /// order, rather than dropping them or aborting the whole print job.
+  Future<List<int>> _renderRow(
+    Generator gen,
+    RowSection section,
+    Map<String, String> tokens,
+    List<SaleItem> items,
+  ) async {
+    final children = section.children;
+    if (children.isEmpty) return const [];
+
+    final allSimple = children.every(
+      (c) => c.section is TextSection || c.section is KeyValueSection,
+    );
+
+    if (allSimple) {
+      final widths = _rowColumnWidths(children.map((c) => c.width).toList());
+      if (widths != null) {
+        try {
+          final columns = [
+            for (var i = 0; i < children.length; i++)
+              _rowColumnFor(children[i].section, tokens, widths[i]),
+          ];
+          return gen.row(columns);
+        } catch (_) {
+          // Fall through to the stacked fallback below.
+        }
+      }
+    }
+
+    List<int> bytes = [];
+    for (final child in children) {
+      bytes += await _renderSection(gen, child.section, tokens, items);
+    }
+    return bytes;
+  }
+
+  PosColumn _rowColumnFor(
+    ReceiptSection section,
+    Map<String, String> tokens,
+    int width,
+  ) {
+    return switch (section) {
+      TextSection s => PosColumn(
+          text: ReceiptTokenResolver.resolve(s.value, tokens).replaceAll('\n', ' '),
+          width: width,
+          styles: _posStyles(align: s.align, bold: s.bold, size: s.size),
+        ),
+      KeyValueSection s => PosColumn(
+          text: '${s.key}: ${ReceiptTokenResolver.resolve(s.value, tokens)}',
+          width: width,
+          styles: s.bold ? const PosStyles(bold: true) : const PosStyles(),
+        ),
+      _ => PosColumn(text: '', width: width),
+    };
+  }
+
+  /// Distributes 12 grid units across [weights] proportionally, guaranteed
+  /// to sum to exactly 12 (`Generator.row` throws otherwise) with every
+  /// column getting at least 1. Returns `null` when that's not possible
+  /// (more columns than grid units to give each at least 1) — the caller
+  /// falls back to stacking instead of forcing a degenerate layout.
+  List<int>? _rowColumnWidths(List<double> weights) {
+    final n = weights.length;
+    if (n > 12) return null;
+    final total = weights.fold<double>(0, (a, b) => a + b);
+    final safeWeights = total > 0 ? weights : List.filled(n, 1.0);
+    final safeTotal = total > 0 ? total : n.toDouble();
+
+    final widths = [
+      for (final w in safeWeights) ((w / safeTotal) * 12).floor(),
+    ];
+    for (var i = 0; i < widths.length; i++) {
+      if (widths[i] < 1) widths[i] = 1;
+    }
+    final sum = widths.fold<int>(0, (a, b) => a + b);
+    widths[widths.length - 1] += 12 - sum;
+    if (widths[widths.length - 1] < 1) return null;
+    return widths;
+  }
+
+  /// Fetches and decodes the logo, then hands it to
+  /// [Generator.image] for ESC/POS raster printing. Never throws — a
+  /// missing/unreachable/corrupt logo must not stop the rest of the receipt
+  /// (every other section) from printing.
+  Future<List<int>> _renderImage(
+    Generator gen,
+    ImageSection section,
+    Map<String, String> tokens,
+  ) async {
+    final url = ReceiptTokenResolver.resolve(section.value, tokens);
+    if (url.isEmpty) return const <int>[];
+
+    final bytes = await ReceiptImageLoader.fetchBytes(url);
+    if (bytes == null) return const <int>[];
+
+    try {
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return const <int>[];
+      final align = switch (section.align) {
+        'left' => PosAlign.left,
+        'right' => PosAlign.right,
+        _ => PosAlign.center,
+      };
+      return gen.image(decoded, align: align);
+    } catch (_) {
+      return const <int>[];
+    }
   }
 
   PosStyles _posStyles({

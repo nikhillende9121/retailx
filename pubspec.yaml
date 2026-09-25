@@ -45,6 +45,11 @@ dependencies:
   # build with an "incompatible Kotlin metadata" compiler crash.
   print_bluetooth_thermal: ^1.2.1
   esc_pos_utils_plus: ^2.0.4
+  # Was already resolved transitively (esc_pos_utils_plus depends on it for
+  # its own `Generator.image()` decoding), now imported directly too — the
+  # schema-driven receipt's `image` section decodes a fetched logo with it
+  # for both the ESC/POS and PDF renderers.
+  image: ^4.10.1
 
   # PDF generation and native print dialog (desktop + Android PDF export).
   # `printing` opens the OS print dialog on Windows/macOS/Linux and the

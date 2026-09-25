@@ -62,6 +62,7 @@ sealed class ReceiptSection {
       'qr' => QrSection.fromJson(json),
       'spacer' => SpacerSection.fromJson(json),
       'terms' => TermsSection.fromJson(json),
+      'row' => RowSection.fromJson(json),
       _ => UnknownSection(type),
     };
   }
@@ -219,13 +220,7 @@ class SpacerSection extends ReceiptSection {
       );
 }
 
-/// Small-print terms & conditions block.
-///
-/// Portal-only addition (guide §1 warning) — on a real device this is
-/// an unrecognized type and prints nothing until the Android renderer
-/// adds a matching case. This renderer *does* support it (it's just a
-/// small multi-line text block), so it'll print from this app even
-/// before the spec is updated.
+/// Small-print terms & conditions block — `\n` in [value] is a line break.
 class TermsSection extends ReceiptSection {
   const TermsSection({
     required this.value,
@@ -241,6 +236,38 @@ class TermsSection extends ReceiptSection {
         value: asString(json['value']) ?? '',
         align: asString(json['align']) ?? 'left',
         size: asString(json['size']) ?? 'xs',
+      );
+}
+
+/// Lays its children out side by side instead of stacked.
+class RowSection extends ReceiptSection {
+  const RowSection({required this.children});
+
+  final List<RowChild> children;
+
+  factory RowSection.fromJson(Map<String, dynamic> json) {
+    final raw = json['sections'];
+    final list = raw is List ? raw : const [];
+    return RowSection(
+      children: list.whereType<Map<String, dynamic>>().map(RowChild.fromJson).toList(),
+    );
+  }
+}
+
+/// One child of a [RowSection]: the section itself (any type, parsed the
+/// same as a top-level one — even another [RowSection]), plus its relative
+/// share of the row's width. Two children with `width: 1` (the default)
+/// split the row evenly; a `width: 2` child gets twice the share of a
+/// `width: 1` sibling.
+class RowChild {
+  const RowChild({required this.section, this.width = 1});
+
+  final ReceiptSection section;
+  final double width;
+
+  factory RowChild.fromJson(Map<String, dynamic> json) => RowChild(
+        section: ReceiptSection.fromJson(json),
+        width: asDouble(json['width'], 1),
       );
 }
 
